@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# ХРАНИЛИЩА
+
 USER_DATA_FILE = "user_data.json"
 user_sessions = {}
 
@@ -55,7 +55,7 @@ def update_user_stats(user_id):
     
     save_user_data(user_data)
 
-# КЛАВИАТУРЫ
+
 def get_main_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -83,7 +83,7 @@ def get_admin_keyboard():
         resize_keyboard=True
     )
 
-# ФУНКЦИИ ДЛЯ СМЕНЫ ФОНА
+
 def create_color_bg(width, height, color_name):
     colors = {
         "white": (255, 255, 255),
@@ -108,24 +108,23 @@ def apply_background(no_bg_bytes, bg_bytes, mask):
     result.save(output_buffer, format='PNG')
     return output_buffer.getvalue()
 
-# ПРОГРЕСС-БАР
+
 def get_progress_bar(percentage, length=10):
     filled = int(length * percentage / 100)
     empty = length - filled
     return f"[{'█' * filled}{'░' * empty}] {percentage}%"
 
 async def show_processing_progress(message, steps):
-    """Показывает прогресс обработки"""
     progress_msg = await message.answer("🔄 Подготовка к обработке...")
     
     for step_name, progress in steps:
         await progress_msg.edit_text(f"🔄 {step_name} {get_progress_bar(progress)}")
-        await asyncio.sleep(0.8)  # Имитация процесса
+        await asyncio.sleep(0.8)  
     
     await progress_msg.delete()
     return True
 
-# КОМАНДА START
+
 @dp.message(Command("start"))
 async def start(message: types.Message):
     user_id = str(message.from_user.id)
@@ -148,7 +147,7 @@ async def start(message: types.Message):
     
     await message.answer(welcome_text, parse_mode='HTML', reply_markup=get_main_keyboard())
 
-# УДАЛЕНИЕ ФОНА
+
 @dp.message(F.text == "🎯 Удалить фон")
 async def remove_bg_start(message: types.Message):
     await message.answer(
@@ -161,7 +160,7 @@ async def remove_bg_start(message: types.Message):
         reply_markup=types.ReplyKeyboardRemove()
     )
 
-# ИЗМЕНЕНИЕ ФОНА
+
 @dp.message(F.text == "🎨 Изменить фон")
 async def change_bg_start(message: types.Message):
     user_id = message.from_user.id
@@ -197,8 +196,7 @@ async def apply_color_bg(message, color):
     if user_id not in user_sessions:
         await message.answer("❌ <b>Сессия устарела</b>\nНачните заново с удаления фона", parse_mode='HTML', reply_markup=get_main_keyboard())
         return
-    
-    # Показываем прогресс
+
     steps = [
         ("Создаю фон...", 25),
         ("Накладываю изображение...", 50),
@@ -263,14 +261,13 @@ async def cancel_bg(message: types.Message):
     
     await message.answer("❌ <b>Операция отменена</b>", parse_mode='HTML', reply_markup=get_main_keyboard())
 
-# ОБРАБОТКА ФОТО
 @dp.message(F.photo | F.document)
 async def handle_photo(message: types.Message):
     user_id = message.from_user.id
     
-    # Режим смены фона (свое фото как фон)
+
     if user_id in user_sessions and user_sessions[user_id]["step"] == "waiting_bg_photo":
-        # Показываем прогресс
+
         steps = [
             ("Анализирую фон...", 20),
             ("Подготавливаю изображение...", 40),
@@ -283,7 +280,6 @@ async def handle_photo(message: types.Message):
         session = user_sessions[user_id]
         
         try:
-            # Скачиваем фоновое фото
             if message.photo:
                 file_id = message.photo[-1].file_id
             else:
@@ -292,7 +288,7 @@ async def handle_photo(message: types.Message):
             file = await bot.get_file(file_id)
             file_bytes = await bot.download_file(file.file_path)
             
-            # Накладываем фон
+
             result_bytes = apply_background(
                 session["no_bg_bytes"], 
                 file_bytes.getvalue(), 
@@ -323,9 +319,7 @@ async def handle_photo(message: types.Message):
             )
         return
     
-    # ОБЫЧНОЕ УДАЛЕНИЕ ФОНА
     try:
-        # Скачиваем фото
         if message.photo:
             file_id = message.photo[-1].file_id
         else:
@@ -334,7 +328,7 @@ async def handle_photo(message: types.Message):
         file = await bot.get_file(file_id)
         file_bytes = await bot.download_file(file.file_path)
         
-        # Показываем прогресс удаления фона
+
         steps = [
             ("Загружаю фото...", 10),
             ("Анализирую изображение...", 30),
@@ -388,7 +382,6 @@ async def handle_photo(message: types.Message):
             reply_markup=get_main_keyboard()
         )
 
-# СТАТИСТИКА
 @dp.message(F.text == "📊 Статистика")
 async def show_stats(message: types.Message):
     user_data = load_user_data()
@@ -414,7 +407,6 @@ async def show_stats(message: types.Message):
 async def new_photo(message: types.Message):
     await remove_bg_start(message)
 
-# ПОМОЩЬ
 @dp.message(F.text == "🆘 Помощь")
 async def help_command(message: types.Message):
     text = (
@@ -434,7 +426,6 @@ async def help_command(message: types.Message):
     )
     await message.answer(text, parse_mode='HTML')
 
-# АДМИН ПАНЕЛЬ
 @dp.message(Command("admin"))
 async def admin_command(message: types.Message):
     if message.from_user.id != ADMIN_ID:
@@ -481,19 +472,16 @@ async def admin_stats(message: types.Message):
     total_users = len(user_data)
     total_processed = sum(user['total_processed'] for user in user_data.values())
     
-    # Статистика по активности
     today = datetime.now().date()
     weekly_processed = 0
     active_today = 0
     
     for user_id, data in user_data.items():
-        # Активность за сегодня
         if 'history' in data and data['history']:
             last_activity = datetime.fromisoformat(data['history'][-1]['date']).date()
             if last_activity == today:
                 active_today += 1
         
-        # Обработки за неделю
         first_use = datetime.fromisoformat(data.get('first_use', datetime.now().isoformat())).date()
         days_used = (today - first_use).days
         if days_used <= 7:
@@ -519,7 +507,7 @@ async def top_clients(message: types.Message):
         await message.answer("📭 <b>Пользователей пока нет</b>", parse_mode='HTML')
         return
     
-    # Сортируем по количеству обработок
+
     sorted_users = sorted(user_data.items(), key=lambda x: x[1]['total_processed'], reverse=True)
     
     text = "🏆 <b>Топ клиентов по активности:</b>\n\n"
@@ -530,7 +518,7 @@ async def top_clients(message: types.Message):
     
     await message.answer(text, parse_mode='HTML')
 
-# ВОЗВРАТ В ГЛАВНОЕ МЕНЮ
+
 @dp.message(F.text == "🔙 Главное меню")
 async def back_to_main(message: types.Message):
     await message.answer("🔙 <b>Главное меню</b>", parse_mode='HTML', reply_markup=get_main_keyboard())
@@ -539,7 +527,7 @@ async def back_to_main(message: types.Message):
 async def admin_back_to_main(message: types.Message):
     await message.answer("🔙 <b>Главное меню</b>", parse_mode='HTML', reply_markup=get_main_keyboard())
 
-# ЗАПУСК
+
 async def main():
     logger.info("Запускаем бота...")
     await dp.start_polling(bot)
